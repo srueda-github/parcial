@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSS only -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+  <link rel="stylesheet" href="./styles/styles.css">
+  <title>Puntos ecológicos UTS</title>
+</head>
+
+<body>
+  <main class="container_app contaminacion">
+    <div class="cont-theme">
+      <h1 id="title_modal">Residuos aprovechables</h1>
+      <form class="form" id="theme">
+        <label for="input">Número de objetos basura: </label>
+        <input type="number" id="num_basura" max="500" class="form-control" required />
+        <div class="buttons mt-5">
+          <button id="btnSend" type="submit">Enviar</button>
+          <button id="btnCancel" type="button">Cancelar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="filter">
+      <select id="punto_filter" class="form-select">
+        <option>Elige un punto Ecológico</option>
+      </select>
+    </div>
+
+    <section class="container_rubbish">
+      <div class="bowl" id="aprovechables">
+        <div class="body_top">
+          <span class="mt-1"><span id="num_cont1">0</span>/500</span>
+        </div>
+        <div class="body_bowl">
+          <span class="title_bowl">Residuos <br> aprovechables</span>
+          <span class="item" id="item_plastico">Plástico</span>
+          <span class="item" id="item_carton">Cartón</span>
+          <span class="item" id="item_vidrio">Vidrio</span>
+          <span class="item" id="item_papel">Papel</span>
+          <span class="item" id="item_metales">Metales</span>
+          <img src="https://cdn.pixabay.com/photo/2013/07/13/11/45/conservation-158615_960_720.png" class="my-1"
+            width="40px">
+        </div>
+        <span class="wheel_left"></span>
+        <span class="wheel_right"></span>
+      </div>
+
+      <div class="bowl" id="organicos">
+        <div class="body_top">
+          <span class="mt-1 text-white"><span id="num_cont2">0</span>/500</span>
+        </div>
+        <div class="body_bowl">
+          <span class="title_bowl">Residuos <br> orgánicos <br> aprovechables</span>
+          <span class="item mt-2" id="item_restos_comida">Restos de comida</span>
+          <span class="item mt-2" id="item_desechos_agricolas">Desechos agrícolas</span>
+          <img src="https://cdn.pixabay.com/photo/2013/07/13/11/45/conservation-158615_960_720.png" class="my-1"
+            width="40px">
+        </div>
+        <span class="wheel_left"></span>
+        <span class="wheel_right"></span>
+      </div>
+
+      <div class="bowl" id="no_aprovechables">
+        <div class="body_top">
+          <span class="mt-1 text-white"><span id="num_cont3">0</span>/500</span>
+        </div>
+        <div class="body_bowl">
+          <span class="title_bowl">Residuos no<br> aprovechables</span>
+          <span class="item mt-2" id="item_papel_higienico">Papel higiénico</span>
+          <span class="item mt-2" id="item_servilletas">Servilletas</span>
+          <span class="item mt-2 text-center" id="item_papeles_metalizados">Papeles metalizados</span>
+          <img src="https://cdn.pixabay.com/photo/2013/07/13/11/45/conservation-158615_960_720.png" class="my-1"
+            width="40px">
+        </div>
+        <span class="wheel_left"></span>
+        <span class="wheel_right"></span>
+      </div>
+    </section>
+
+    <h1 class="estado_title"><span id="punto-text"></span> Estado: <span id="estado-text"></span></h1>
+  </main>
+
+  <script>
+    let resAprovechable = 0;
+    let resOrganico = 0;
+    let resNoAprovechable = 0;
+    let puntoId = '';
+
+    // Función para obtener los puntos ecológicos desde la API
+    async function obtenerPuntosEcologicos() {
+      try {
+        const response = await fetch('http://localhost:5000/api/puntos'); // Asegúrate de que la URL es correcta
+        const puntos = await response.json();
+        console.log('Puntos ecológicos obtenidos:', puntos);
+        
+        const select = document.getElementById('punto_filter');
+        puntos.forEach(punto => {
+          const option = document.createElement('option');
+          option.value = punto._id; // Usa el ID como valor
+          option.textContent = `Edificio ${punto.edificio}, Piso ${punto.piso}`;
+          select.appendChild(option);
+        });
+
+        // Resetear los valores de residuos cuando se cambia el punto ecológico
+        select.addEventListener('change', function () {
+          puntoId = select.value;
+          resAprovechable = 0;
+          resOrganico = 0;
+          resNoAprovechable = 0;
+          document.getElementById('num_cont1').textContent = '0';
+          document.getElementById('num_cont2').textContent = '0';
+          document.getElementById('num_cont3').textContent = '0';
+          document.getElementById('estado-text').textContent = '';
+          document.getElementById('punto-text').textContent = '';
+        });
+
+      } catch (error) {
+        console.error('Error al obtener los puntos ecológicos', error);
+      }
+    }
+
+    // Función para actualizar los residuos en el backend
+    document.getElementById('btnSend').addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      // Verifica que un punto ecológico haya sido seleccionado
+      if (!puntoId) {
+        alert('Por favor, selecciona un punto ecológico.');
+        return;
+      }
+
+      // Enviar los datos al backend
+      const response = await fetch('http://localhost:5000/api/actualizar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: puntoId,
+          resAprovechable,
+          resOrganico,
+          resNoAprovechable
+        })
+      });
+
+      const result = await response.json();
+      console.log('Respuesta del backend:', result);
+
+      // Actualiza el estado del punto ecológico en la interfaz
+      document.getElementById('punto-text').textContent = `Edificio ${result.edificio}, Piso ${result.piso}`;
+      document.getElementById('estado-text').textContent = result.estado;
+
+      // Resetea los contadores
+      document.getElementById('num_cont1').textContent = '0';
+      document.getElementById('num_cont2').textContent = '0';
+      document.getElementById('num_cont3').textContent = '0';
+
+      // Resetea los valores de los contadores
+      resAprovechable = 0;
+      resOrganico = 0;
+      resNoAprovechable = 0;
+    });
+
+    // Función para incrementar los contenedores al hacer clic (incremento de 100)
+    // Función para incrementar los contenedores al hacer clic (incremento de 100)
+function aumentarContenedor(tipo) {
+  const max = 500; // Valor máximo permitido
+
+  if (tipo === 'aprovechables') {
+    if (resAprovechable + 100 <= max) { // Verifica que no se exceda el límite de 500
+      resAprovechable += 100;
+      document.getElementById('num_cont1').textContent = resAprovechable;
+    }
+  } else if (tipo === 'organicos') {
+    if (resOrganico + 100 <= max) { // Verifica que no se exceda el límite de 500
+      resOrganico += 100;
+      document.getElementById('num_cont2').textContent = resOrganico;
+    }
+  } else if (tipo === 'no_aprovechables') {
+    if (resNoAprovechable + 100 <= max) { // Verifica que no se exceda el límite de 500
+      resNoAprovechable += 100;
+      document.getElementById('num_cont3').textContent = resNoAprovechable;
+    }
+  }
+
+  // Calcular el promedio y actualizar el estado
+  const promedio = (resAprovechable + resOrganico + resNoAprovechable) / 3;
+  if (promedio < 60) {
+    document.getElementById('estado-text').textContent = 'Contaminado';
+  } else {
+    document.getElementById('estado-text').textContent = 'Limpio';
+  }
+}
+
+
+    // Añadir eventos de clic para los contenedores
+    document.getElementById('aprovechables').addEventListener('click', () => aumentarContenedor('aprovechables'));
+    document.getElementById('organicos').addEventListener('click', () => aumentarContenedor('organicos'));
+    document.getElementById('no_aprovechables').addEventListener('click', () => aumentarContenedor('no_aprovechables'));
+
+    // Cargar los puntos ecológicos cuando la página cargue
+    window.onload = obtenerPuntosEcologicos;
+  </script>
+</body>
+
+</html>
